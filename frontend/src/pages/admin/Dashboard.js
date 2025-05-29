@@ -5,6 +5,7 @@ import DepartmentFilter from "../../components/DepartmentFilter";
 import BudgetChart from "../../components/BudgetChart";
 import sampleRequests from "../../data/sampleRequests";
 import departments from "../../data/departments";
+import UserSwitcher from "../components/UserSwitcher";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -58,7 +59,8 @@ export default function AdminDashboard() {
 
           <div className="bg-white rounded-2xl shadow p-4">
             <h2 className="text-xl font-semibold mb-4">Budget vs Expenditure</h2>
-            <BudgetChart />
+            <BudgetChart requests={filteredRequests} departments={departments} />
+
           </div>
         </div>
       </div>

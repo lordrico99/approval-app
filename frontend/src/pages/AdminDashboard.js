@@ -3,6 +3,9 @@ import { useMsal } from "@azure/msal-react";
 import { useNavigate } from "react-router-dom";
 import users from "../data/users";
 import BudgetChart from "../components/BudgetChart";
+import sampleRequests from "../data/sampleRequests";
+import departments from "../data/departments";
+import UserSwitcher from "../components/UserSwitcher";
 
 export default function AdminDashboard() {
   const { instance } = useMsal();
@@ -13,6 +16,8 @@ export default function AdminDashboard() {
     const stored = localStorage.getItem("user");
     return stored ? JSON.parse(stored) : null;
   });
+
+  const [selectedDept, setSelectedDept] = useState("All");
 
   const accounts = instance.getAllAccounts();
   const activeAccount = instance.getActiveAccount();
@@ -80,26 +85,53 @@ export default function AdminDashboard() {
     transition: "box-shadow 0.3s",
   };
 
-  const UserSwitcher = () => (
-    <div style={{ marginTop: "2rem", textAlign: "center" }}>
-      <label htmlFor="user-switcher" style={{ marginRight: "0.5rem" }}>
-        Switch User (Dev Only):
-      </label>
-      <select
-        id="user-switcher"
-        onChange={handleUserSwitch}
-        value={activeUser?.email || ""}
-      >
-        <option value="" disabled>
-          Select a user
-        </option>
-        {users.map((user) => (
-          <option key={user.email} value={user.email}>
-            {user.name} ({user.email})
-          </option>
-        ))}
-      </select>
-    </div>
+  const filteredRequests =
+    selectedDept === "All"
+      ? sampleRequests
+      : sampleRequests.filter((r) => r.department === selectedDept);
+
+  const getUserName = (email) => {
+    const user = users.find((u) => u.email === email);
+    return user ? user.name : email;
+  };
+
+  const getDepartmentName = (id) => {
+    const dept = departments.find((d) => d.id === id);
+    return dept ? dept.name : "Unknown";
+  };
+
+  const RequestList = ({ requests }) => (
+    <ul
+      style={{
+        maxHeight: "200px",
+        overflowY: "auto",
+        backgroundColor: "white",
+        borderRadius: "0.5rem",
+        padding: "1rem",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+        marginTop: "1rem",
+      }}
+    >
+      {requests.length === 0 ? (
+        <li>No requests found.</li>
+      ) : (
+        requests.map((req) => (
+          <li
+            key={req.id}
+            style={{
+              borderBottom: "1px solid #e5e7eb",
+              paddingBottom: "0.5rem",
+              marginBottom: "0.5rem",
+            }}
+          >
+            <strong>{req.title}</strong> <br />
+            From: {getUserName(req.sender)} | Dept:{" "}
+            {getDepartmentName(req.department)} | Amount: $
+            {req.amount.toLocaleString()}
+          </li>
+        ))
+      )}
+    </ul>
   );
 
   return (
@@ -146,82 +178,106 @@ export default function AdminDashboard() {
       </header>
 
       <main style={{ padding: "1.5rem" }}>
-  {/* Card Grid */}
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-      gap: "1.5rem",
-    }}
-  >
-    <div
-      style={cardStyle}
-      onClick={goToMyRequests}
-      onMouseOver={(e) =>
-        (e.currentTarget.style.boxShadow = "0 4px 6px rgba(0,0,0,0.15)")
-      }
-      onMouseOut={(e) =>
-        (e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.1)")
-      }
-    >
-      <h2 style={{ fontSize: "1.25rem", fontWeight: "600", marginBottom: "0.5rem" }}>
-        My Requests
-      </h2>
-      <p>View and manage your submitted requests.</p>
-    </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1.5rem",
+            marginBottom: "2rem",
+          }}
+        >
+          <div style={cardStyle} onClick={goToMyRequests}>
+            <h2
+              style={{
+                fontSize: "1.25rem",
+                fontWeight: "600",
+                marginBottom: "0.5rem",
+              }}
+            >
+              My Requests
+            </h2>
+            <p>View and manage your submitted requests.</p>
+          </div>
 
-    <div
-      style={cardStyle}
-      onClick={goToApprovals}
-      onMouseOver={(e) =>
-        (e.currentTarget.style.boxShadow = "0 4px 6px rgba(0,0,0,0.15)")
-      }
-      onMouseOut={(e) =>
-        (e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.1)")
-      }
-    >
-      <h2 style={{ fontSize: "1.25rem", fontWeight: "600", marginBottom: "0.5rem" }}>
-        Approvals
-      </h2>
-      <p>Check and approve requests assigned to you.</p>
-    </div>
+          <div style={cardStyle} onClick={goToApprovals}>
+            <h2
+              style={{
+                fontSize: "1.25rem",
+                fontWeight: "600",
+                marginBottom: "0.5rem",
+              }}
+            >
+              Approvals
+            </h2>
+            <p>Check and approve requests assigned to you.</p>
+          </div>
 
-    <div
-      style={cardStyle}
-      onClick={goToNewRequest}
-      onMouseOver={(e) =>
-        (e.currentTarget.style.boxShadow = "0 4px 6px rgba(0,0,0,0.15)")
-      }
-      onMouseOut={(e) =>
-        (e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.1)")
-      }
-    >
-      <h2 style={{ fontSize: "1.25rem", fontWeight: "600", marginBottom: "0.5rem" }}>
-        New Request
-      </h2>
-      <p>Submit a new request for approval.</p>
-    </div>
-  </div>
+          <div style={cardStyle} onClick={goToNewRequest}>
+            <h2
+              style={{
+                fontSize: "1.25rem",
+                fontWeight: "600",
+                marginBottom: "0.5rem",
+              }}
+            >
+              New Request
+            </h2>
+            <p>Create a new approval request.</p>
+          </div>
+        </div>
 
-  {/* Graph Section */}
-  <div
-    style={{
-      marginTop: "2rem",
-      padding: "1rem",
-      backgroundColor: "white",
-      borderRadius: "0.5rem",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-    }}
-  >
-    <h2 style={{ fontSize: "1.25rem", fontWeight: "600", marginBottom: "1rem" }}>
-      Budget vs Expenditure
-    </h2>
-    <BudgetChart />
-  </div>
+        <section style={{ marginTop: "2rem" }}>
+          <h2
+            style={{
+              fontSize: "1.5rem",
+              fontWeight: "700",
+              marginBottom: "0.75rem",
+              color: "#1f2937",
+            }}
+          >
+            Requests (
+            {selectedDept === "All"
+              ? "All Departments"
+              : getDepartmentName(selectedDept)}
+            )
+          </h2>
 
-  {isDev && <UserSwitcher />}
-</main>
+          <div style={{ marginBottom: "1rem" }}>
+            <label
+              htmlFor="department-filter"
+              style={{ marginRight: "0.5rem" }}
+            >
+              Filter by Department:
+            </label>
+            <select
+              id="department-filter"
+              value={selectedDept}
+              onChange={(e) => setSelectedDept(e.target.value)}
+              style={{ padding: "0.3rem 0.5rem", borderRadius: "0.25rem" }}
+            >
+              <option value="All">All</option>
+              {departments.map((dept) => (
+                <option key={dept.id} value={dept.id}>
+                  {dept.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
+          <RequestList requests={filteredRequests} />
+        </section>
+
+        <section style={{ marginTop: "3rem" }}>
+          <BudgetChart
+            requests={filteredRequests}
+            departments={departments}
+            style={{ height: "400px" }}
+          />
+        </section>
+      </main>
+      {isDev && (
+        <UserSwitcher activeUser={activeUser} onUserSwitch={handleUserSwitch} />
+      )}
     </div>
   );
 }

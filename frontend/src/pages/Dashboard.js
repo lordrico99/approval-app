@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
 import { useNavigate } from "react-router-dom";
 import users from "../data/users";
+import UserSwitcher from "../components/UserSwitcher";
 
 export default function Dashboard() {
   const { instance } = useMsal();

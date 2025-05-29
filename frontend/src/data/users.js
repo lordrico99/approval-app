@@ -9,20 +9,20 @@ const users = [
   {
     email: "s.victor@fanplc.com",
     name: "Victor",
-    department: "Sales",
+    department: "hr",
     role: "user"
   },
   {
     email: "a.damilola@fanplc.com",
     name: "Damilola",
-    department: "IT",
+    department: "sales",
     role: "user"
   },
 
   {
     email: "o.richard@fanplc.com",
     name: "Richard",
-    department: "IT",
+    department: "it",
     role: "user"
   }
 ];
