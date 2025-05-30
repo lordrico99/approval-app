@@ -1,15 +1,15 @@
+// routes/requests.js
 const express = require('express');
 const router = express.Router();
-const Request = require('../models/request'); // Adjust path & model name as needed
+const ApprovalRequest = require('../models/ApprovalRequest');
 
-// GET /api/requests - get all requests
 router.get('/', async (req, res) => {
   try {
-    const requests = await Request.find();
-    res.json(requests);
+    const requests = await ApprovalRequest.find();
+    res.json(requests); // send JSON response
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error fetching requests' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

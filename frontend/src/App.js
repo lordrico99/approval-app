@@ -8,6 +8,7 @@ import NewRequest from "./pages/NewRequest";
 import MyRequests from "./pages/MyRequests";
 import AppRedirect from "./components/AppRedirect";
 import AdminDashboard from "./pages/AdminDashboard";
+import BudgetChartContainer from "./components/BudgetChartContainer";
 
 function App() {
   return (
@@ -52,13 +53,20 @@ function App() {
       />
       <Route path="/approvals" element={<Approvals key={Date.now()} />} />
 
-
       {/* Protected admin route */}
       <Route
         path="/admin/dashboard"
         element={
           <PrivateRoute>
             <AdminDashboard />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/budget-chart"
+        element={
+          <PrivateRoute>
+            <BudgetChartContainer />
           </PrivateRoute>
         }
       />

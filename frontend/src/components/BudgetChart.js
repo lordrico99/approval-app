@@ -12,9 +12,13 @@ function calculateBudgetAndExpenditure(requests = [], departments = []) {
   });
 
   requests.forEach(req => {
-    if (req.status === "approved" && expenditureMap.hasOwnProperty(req.department)) {
-      expenditureMap[req.department] += req.amount;
-    }
+    if (req.status === "approved") {
+  const deptId = typeof req.department === "string" ? req.department : req.department._id;
+  if (expenditureMap.hasOwnProperty(deptId)) {
+    expenditureMap[deptId] += req.amount;
+  }
+}
+
   });
 
   return departments.map(dep => ({

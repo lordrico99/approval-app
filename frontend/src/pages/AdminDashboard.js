@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
 import { useNavigate } from "react-router-dom";
+import departments from "../data/departments"; // keep this for filtering names
+import UserSwitcher from "../components/UserSwitcher";
 import users from "../data/users";
 import BudgetChart from "../components/BudgetChart";
-import sampleRequests from "../data/sampleRequests";
-import departments from "../data/departments";
-import UserSwitcher from "../components/UserSwitcher";
+import BudgetChartContainer from "../components/BudgetChartContainer";
 
 export default function AdminDashboard() {
   const { instance } = useMsal();
@@ -18,6 +18,14 @@ export default function AdminDashboard() {
   });
 
   const [selectedDept, setSelectedDept] = useState("All");
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // New states for approved requests
+  const [approvedRequests, setApprovedRequests] = useState([]);
+  const [approvedLoading, setApprovedLoading] = useState(true);
+  const [approvedError, setApprovedError] = useState(null);
 
   const accounts = instance.getAllAccounts();
   const activeAccount = instance.getActiveAccount();
@@ -32,6 +40,51 @@ export default function AdminDashboard() {
       instance.setActiveAccount(mockAccount);
     }
   }, [activeUser, activeAccount, instance, isDev]);
+
+  // Fetch all requests
+  useEffect(() => {
+    const fetchRequests = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch("http://localhost:5000/api/requests");
+        if (!response.ok) throw new Error("Failed to fetch requests");
+        const data = await response.json();
+        setRequests(data);
+        setError(null);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+      console.log(
+        "Fetching from:",
+        `${process.env.REACT_APP_API_BASE_URL}/api/requests`
+      );
+      console.log("API base URL:", process.env.REACT_APP_API_BASE_URL);
+    };
+
+    fetchRequests();
+  }, []);
+
+  // Fetch approved requests
+  useEffect(() => {
+    const fetchApprovedRequests = async () => {
+      setApprovedLoading(true);
+      try {
+        const response = await fetch("http://localhost:5000/api/requests/approved");
+        if (!response.ok) throw new Error("Failed to fetch approved requests");
+        const data = await response.json();
+        setApprovedRequests(data);
+        setApprovedError(null);
+      } catch (err) {
+        setApprovedError(err.message);
+      } finally {
+        setApprovedLoading(false);
+      }
+    };
+
+    fetchApprovedRequests();
+  }, []);
 
   const username = activeUser?.name || activeUser?.email || "Admin";
 
@@ -85,19 +138,31 @@ export default function AdminDashboard() {
     transition: "box-shadow 0.3s",
   };
 
+  // Filter requests by selected department or show all
   const filteredRequests =
     selectedDept === "All"
-      ? sampleRequests
-      : sampleRequests.filter((r) => r.department === selectedDept);
+      ? requests
+      : requests.filter(
+          (r) =>
+            r.department &&
+            (r.department._id === selectedDept || r.department === selectedDept)
+        );
 
-  const getUserName = (email) => {
-    const user = users.find((u) => u.email === email);
-    return user ? user.name : email;
+  // Helper to get department name safely
+  const getDepartmentName = (dept) => {
+    if (!dept) return "Unknown";
+    if (typeof dept === "string") {
+      // dept is id string
+      const found = departments.find((d) => d.id === dept);
+      return found ? found.name : "Unknown";
+    }
+    return dept.name || "Unknown"; // populated object
   };
 
-  const getDepartmentName = (id) => {
-    const dept = departments.find((d) => d.id === id);
-    return dept ? dept.name : "Unknown";
+  // Helper to get user name/email
+  const getUserName = (submittedBy) => {
+    if (!submittedBy) return "Unknown";
+    return submittedBy.name || submittedBy.email || "Unknown";
   };
 
   const RequestList = ({ requests }) => (
@@ -117,7 +182,7 @@ export default function AdminDashboard() {
       ) : (
         requests.map((req) => (
           <li
-            key={req.id}
+            key={req._id}
             style={{
               borderBottom: "1px solid #e5e7eb",
               paddingBottom: "0.5rem",
@@ -125,14 +190,24 @@ export default function AdminDashboard() {
             }}
           >
             <strong>{req.title}</strong> <br />
-            From: {getUserName(req.sender)} | Dept:{" "}
+            From: {getUserName(req.submittedBy)} | Dept:{" "}
             {getDepartmentName(req.department)} | Amount: $
-            {req.amount.toLocaleString()}
+            {req.amount?.toLocaleString()}
           </li>
         ))
       )}
     </ul>
   );
+
+  const filteredApprovedRequests =
+  selectedDept === "All"
+    ? approvedRequests
+    : approvedRequests.filter(
+        (r) =>
+          r.department &&
+          (r.department._id === selectedDept || r.department === selectedDept)
+      );
+
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#f3f4f6" }}>
@@ -226,6 +301,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* All Requests Section */}
         <section style={{ marginTop: "2rem" }}>
           <h2
             style={{
@@ -264,20 +340,37 @@ export default function AdminDashboard() {
             </select>
           </div>
 
-          <RequestList requests={filteredRequests} />
+          {loading && <p>Loading requests...</p>}
+          {error && <p style={{ color: "red" }}>{error}</p>}
+
+          {!loading && !error && <RequestList requests={filteredRequests} />}
         </section>
 
+        {/* Approved Requests Section */}
         <section style={{ marginTop: "3rem" }}>
-          <BudgetChart
-            requests={filteredRequests}
-            departments={departments}
-            style={{ height: "400px" }}
-          />
+          <h2
+            style={{
+              fontSize: "1.5rem",
+              fontWeight: "700",
+              marginBottom: "0.75rem",
+              color: "#1f2937",
+            }}
+          >
+            Approved Requests
+          </h2>
+
+          {approvedLoading && <p>Loading approved requests...</p>}
+          {approvedError && <p style={{ color: "red" }}>{approvedError}</p>}
+
+          {!approvedLoading && !approvedError && (
+            <RequestList requests={filteredApprovedRequests} />
+          )}
         </section>
+
+        <BudgetChartContainer />
       </main>
-      {isDev && (
-        <UserSwitcher activeUser={activeUser} onUserSwitch={handleUserSwitch} />
-      )}
+      <UserSwitcher activeUser={activeUser} onUserSwitch={handleUserSwitch} />
+
     </div>
   );
 }

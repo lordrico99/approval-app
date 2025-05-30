@@ -1,9 +1,12 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../api"; // Axios instance
 
 export default function NewRequest() {
   const navigate = useNavigate();
-  const currentUser = localStorage.getItem("user");
+
+  const storedUser = localStorage.getItem("user");
+  const currentUser = storedUser ? JSON.parse(storedUser) : null;
 
   const [remainingBudget, setRemainingBudget] = useState(() => {
     const savedBudget = localStorage.getItem("remainingBudget");
@@ -16,39 +19,32 @@ export default function NewRequest() {
   const [attachment, setAttachment] = useState(null);
   const [attachmentName, setAttachmentName] = useState("");
 
-  // Handle file input change
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     const allowedTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/gif",
-      "application/pdf",
-      "application/vnd.ms-excel",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "image/jpeg", "image/png", "image/gif", "application/pdf",
+      "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ];
 
     if (!allowedTypes.includes(file.type)) {
-      alert("File type not supported. Please upload image, PDF, Excel, or Word document.");
+      alert("Unsupported file type.");
       e.target.value = null;
       return;
     }
 
     setAttachmentName(file.name);
 
-    // Convert file to base64
     const reader = new FileReader();
     reader.onload = () => {
-      setAttachment(reader.result); // base64 string
+      setAttachment(reader.result); // base64
     };
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const amountValue = parseFloat(amount);
@@ -57,30 +53,39 @@ export default function NewRequest() {
       return;
     }
 
+    if (!currentUser) {
+      alert("User not found. Please log in again.");
+      return;
+    }
+
     const newRequest = {
-      id: Date.now(),
       title: requestTitle,
       amount: amountValue,
       description,
-      status: "pending",
-      submittedAt: new Date().toISOString(),
-      submittedBy: currentUser,
-      approver: "itsupport@fanplc.com",
-      dateSubmitted: new Date().toLocaleString(),
-      attachment,         // base64 file data
-      attachmentName,     // original file name
+      submittedBy: {
+        email: currentUser.email,
+        name: currentUser.name,
+        department: currentUser.department,
+      },
+      approver: "itsupport@fanplc.com", // You may want to make this dynamic later
+      attachment,
+      attachmentName,
+      status: "pending"
     };
 
-    const allRequests = JSON.parse(localStorage.getItem("requests")) || [];
-    allRequests.push(newRequest);
-    localStorage.setItem("requests", JSON.stringify(allRequests));
+    try {
+      await api.post("/requests", newRequest);
 
-    const updatedBudget = remainingBudget - amountValue;
-    setRemainingBudget(updatedBudget);
-    localStorage.setItem("remainingBudget", updatedBudget.toString());
+      const updatedBudget = remainingBudget - amountValue;
+      setRemainingBudget(updatedBudget);
+      localStorage.setItem("remainingBudget", updatedBudget.toString());
 
-    alert(`Email sent to itsupport@fanplc.com: New request from ${currentUser}`);
-    navigate("/dashboard");
+      alert(`Request submitted and email sent to ${newRequest.approver}`);
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Error submitting request:", error.response?.data || error.message);
+      alert("Failed to submit request. Please try again.");
+    }
   };
 
   return (
@@ -123,7 +128,7 @@ export default function NewRequest() {
           style={{ display: "block", width: "100%", marginBottom: "1rem" }}
         ></textarea>
 
-        <label>Attachment (Image, PDF, Excel, Docs)</label>
+        <label>Attachment</label>
         <input
           type="file"
           accept=".jpg,.jpeg,.png,.gif,.pdf,.xls,.xlsx,.doc,.docx"

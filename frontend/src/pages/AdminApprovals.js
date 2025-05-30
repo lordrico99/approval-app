@@ -6,31 +6,85 @@ export default function Approvals() {
   const [activeTab, setActiveTab] = useState("pending");
 
   useEffect(() => {
-    const requests = JSON.parse(localStorage.getItem("requests")) || [];
-    const assignedRequests = requests.filter(
-      (req) => req.approver === currentUser.email
-    );
-    setAllRequests(assignedRequests);
+    const fetchRequests = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/api/requests");
+        if (!response.ok) throw new Error("Failed to fetch requests");
+        const data = await response.json();
+
+        // Map backend data to frontend expected format
+        const mapped = data.map((req) => ({
+          id: req._id,
+          title: req.title,
+          description: req.description,
+          amount: req.amount || 0,
+          status: req.status.toLowerCase(),
+          approver: req.approver || "", // Adjust if your backend includes this field
+          submittedBy: {
+            email: req.requesterEmail || "unknown",
+            name: req.requesterName || "N/A",
+            department: req.department || "N/A",
+          },
+          dateSubmitted: req.dateSubmitted,
+        }));
+
+        // Filter requests assigned to current user by approver email
+        const assignedRequests = mapped.filter(
+          (req) => req.approver === currentUser.email
+        );
+
+        setAllRequests(assignedRequests);
+      } catch (error) {
+        console.error("Error fetching requests:", error);
+        alert("Failed to fetch approved requests");
+      }
+    };
+
+    fetchRequests();
   }, [currentUser]);
 
-  const handleDecision = (id, decision) => {
-    const requests = JSON.parse(localStorage.getItem("requests")) || [];
-    const updated = requests.map((req) =>
-      req.id === id ? { ...req, status: decision } : req
-    );
+  const handleDecision = async (id, decision) => {
+    try {
+      // Send approval/rejection decision to backend API
+      const response = await fetch(`http://localhost:5000/api/requests/${id}/decision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: decision }),
+      });
 
-    const decidedRequest = requests.find((req) => req.id === id);
+      if (!response.ok) throw new Error("Failed to update request");
 
-    if (decision === "rejected" && decidedRequest) {
-      let globalBudget =
-        parseFloat(localStorage.getItem("remainingBudget")) || 1000000;
-      globalBudget += decidedRequest.amount;
-      localStorage.setItem("remainingBudget", globalBudget.toString());
+      // Optionally, you could re-fetch requests here or update state locally
+      // For now, just re-fetch all requests:
+      const updatedResponse = await fetch("http://localhost:5000/api/requests");
+      const updatedData = await updatedResponse.json();
+
+      const mapped = updatedData.map((req) => ({
+        id: req._id,
+        title: req.title,
+        description: req.description,
+        amount: req.amount || 0,
+        status: req.status.toLowerCase(),
+        approver: req.approver || "",
+        submittedBy: {
+          email: req.requesterEmail || "unknown",
+          name: req.requesterName || "N/A",
+          department: req.department || "N/A",
+        },
+        dateSubmitted: req.dateSubmitted,
+      }));
+
+      const assignedRequests = mapped.filter(
+        (req) => req.approver === currentUser.email
+      );
+
+      setAllRequests(assignedRequests);
+
+      alert(`Request ${id} has been ${decision}.`);
+    } catch (error) {
+      console.error("Error updating request:", error);
+      alert("Failed to update request status.");
     }
-
-    localStorage.setItem("requests", JSON.stringify(updated));
-    setAllRequests(updated.filter((req) => req.approver === currentUser.email));
-    alert(`Request ${id} has been ${decision}.`);
   };
 
   const tabStyle = (tab) => ({
@@ -146,57 +200,28 @@ export default function Approvals() {
             {/* Submitted By Section */}
             <div style={{ marginTop: "0.5rem", marginBottom: "0.5rem" }}>
               <strong>Submitted By:</strong>
-              {(() => {
-                let submitted = "";
-                let name = "N/A";
-                let dept = "N/A";
-
-                if (typeof req.submittedBy === "string") {
-                  try {
-                    // Try parsing in case it's JSON string
-                    const parsed = JSON.parse(req.submittedBy);
-                    if (typeof parsed === "object") {
-                      submitted = parsed.email || JSON.stringify(parsed);
-                      name = parsed.name || "N/A";
-                      dept = parsed.department || "N/A";
-                    } else {
-                      submitted = parsed;
-                    }
-                  } catch {
-                    // Not JSON, just string email
-                    submitted = req.submittedBy;
-                  }
-                } else if (typeof req.submittedBy === "object") {
-                  submitted = req.submittedBy.email || "Unknown";
-                  name = req.submittedBy.name || "N/A";
-                  dept = req.submittedBy.department || "N/A";
-                }
-
-                return (
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      marginTop: "0.25rem",
-                    }}
-                  >
-                    <thead>
-                      <tr>
-                        <th style={headerStyle}>Email</th>
-                        <th style={headerStyle}>Name</th>
-                        <th style={headerStyle}>Department</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td style={cellStyle}>{submitted}</td>
-                        <td style={cellStyle}>{name}</td>
-                        <td style={cellStyle}>{dept}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                );
-              })()}
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  marginTop: "0.25rem",
+                }}
+              >
+                <thead>
+                  <tr>
+                    <th style={headerStyle}>Email</th>
+                    <th style={headerStyle}>Name</th>
+                    <th style={headerStyle}>Department</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style={cellStyle}>{req.submittedBy.email}</td>
+                    <td style={cellStyle}>{req.submittedBy.name}</td>
+                    <td style={cellStyle}>{req.submittedBy.department}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
             <p>
